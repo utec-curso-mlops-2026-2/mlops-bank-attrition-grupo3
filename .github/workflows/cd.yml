@@ -1,0 +1,20 @@
+name: Despliegue pendiente de implementar
+
+# Al completar la solución, integrar el disparador de master solicitado en R6.
+# Antes: CI y validación del modelo. Después: prueba de inferencia y evidencia.
+# La plantilla no despliega ni crea recursos de AWS.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pending:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Explicar implementación pendiente
+        run: |
+          echo '::error::Implementar verificaciones, despliegue AWS y prueba posterior antes de habilitar CD.'
+          exit 1

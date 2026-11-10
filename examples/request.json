@@ -1,0 +1,11 @@
+{
+  "metadata": {
+    "ID_CORRELATIVO": "CLIENTE_SINTETICO_001",
+    "CODMES": 202408
+  },
+  "features": {
+    "EDAD": 42,
+    "ANTIGUEDAD": 24,
+    "N_REQUERIMIENTOS_VENTANA": 2
+  }
+}

@@ -1,0 +1,19 @@
+name: Entrenamiento pendiente de implementar
+
+# El equipo debe reemplazar este bloqueo por su pipeline y configurar el acceso.
+# Este workflow inicial nunca accede a S3, MLflow ni recursos de AWS.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pending:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Explicar implementación pendiente
+        run: |
+          echo '::error::Implementar entrenamiento, validación, trazabilidad y registro antes de habilitar este workflow.'
+          exit 1

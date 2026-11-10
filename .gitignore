@@ -1,0 +1,47 @@
+# Python y herramientas
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+test-results/
+.ipynb_checkpoints/
+
+# Entorno, credenciales y estado de infraestructura
+.env
+.env.*
+!.env.example
+.aws/
+*.pem
+*.key
+.terraform/
+*.tfstate*
+*.tfvars
+
+# Datos, modelos y salidas generadas. Los ejemplos sintéticos sí se versionan.
+data/
+artifacts/
+reports/
+mlruns/
+mlartifacts/
+*.pkl
+*.pickle
+*.joblib
+*.parquet
+*.csv
+*.xlsx
+*.zip
+*.db
+*.sqlite*
+
+# Sistema y editor
+.DS_Store
+.idea/
+.vscode/
+~$*

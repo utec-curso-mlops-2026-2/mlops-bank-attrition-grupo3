@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "status": "pendiente",
+  "dataset_release": null,
+  "recorded_at_utc": null,
+  "source_system": "s3",
+  "provenance_url": "https://www.kaggle.com/datasets/jhonyjacobi/bank-attrition-detection",
+  "instructions": "Completar con la entrega oficial en S3. null significa no registrado, no un valor confirmado. Usar SHA-256 del archivo leído; registrar VersionId cuando exista. No usar ETag como sustituto automático de SHA-256. Actualizar también el nombre del diccionario si cambia.",
+  "temporal_policy": {
+    "status": "pendiente",
+    "decision_reference": null,
+    "authorized_changes": []
+  },
+  "files": [
+    {"logical_name": "train_clientes", "filename": "train_clientes_sample.csv", "status": "pendiente", "source_uri": null, "version_id": null, "sha256": null, "row_count": null},
+    {"logical_name": "train_requerimientos", "filename": "train_requerimientos_sample.csv", "status": "pendiente", "source_uri": null, "version_id": null, "sha256": null, "row_count": null},
+    {"logical_name": "oot_clientes", "filename": "oot_clientes_sample.csv", "status": "pendiente", "source_uri": null, "version_id": null, "sha256": null, "row_count": null},
+    {"logical_name": "oot_requerimientos", "filename": "oot_requerimientos_sample.csv", "status": "pendiente", "source_uri": null, "version_id": null, "sha256": null, "row_count": null},
+    {"logical_name": "diccionario", "filename": "diccionario_datos.xlsx", "status": "pendiente", "source_uri": null, "version_id": null, "sha256": null}
+  ],
+  "feature_release": null,
+  "split_manifest_uri": null,
+  "validation_report_uri": null
+}
