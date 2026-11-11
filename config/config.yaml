@@ -1,0 +1,16 @@
+data:
+  raw_path: data/raw/202611
+  data_version: "202611"
+  clientes_train: train_clientes_sample.csv
+  req_train: train_requerimientos_sample.csv
+  clientes_oot: oot_clientes_sample.csv
+  req_oot: oot_requerimientos_sample.csv
+  id_col: ""
+  target_col: attrition
+split:
+  test_size: 0.3
+  random_state: 42
+mlflow:
+  experiment_name: /Shared/utec-bank-attrition
+  model_name: workspace.bank_attrition.attrition_model
+  min_auc_test: 0.70
