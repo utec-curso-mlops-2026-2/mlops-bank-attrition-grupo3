@@ -11,6 +11,6 @@ split:
   test_size: 0.3
   random_state: 42
 mlflow:
-  experiment_name: utec-bank-attrition
-  model_name: bank_attrition_model
+  experiment_name: /Shared/utec-bank-attrition
+  model_name: workspace.bank_attrition.attrition_model
   min_auc_test: 0.70
