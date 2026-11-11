@@ -40,9 +40,7 @@ def test_ventana_excluye_meses_fuera_de_rango():
         ["Reclamo", "Solicitud"],
         ["PROCEDE TOTAL", "NO PROCEDE", "PROCEDE PARCIAL", "SIN_DICTAMEN"],
     )
-    assert (
-        f.loc[1, "REQ_DICT_PROCEDE_PARCIAL"] == 0
-    )  # categoría ausente igual genera columna
+    assert f.loc[1, "REQ_DICT_PROCEDE_PARCIAL"] == 0  # categoría ausente igual genera columna
     assert f.loc[1, "REQ_TOTAL"] == 2  # 202402 queda fuera de la ventana
     assert f.loc[1, "REQ_ULT_MES"] == 1
     assert f.loc[1, "REQ_DICT_SIN_DICTAMEN"] == 1

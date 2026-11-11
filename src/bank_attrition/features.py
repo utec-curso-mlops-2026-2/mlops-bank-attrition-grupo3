@@ -42,9 +42,7 @@ def build_req_features(
     req["PROD"] = req["PRODUCTO_SERVICIO_2"].where(
         req["PRODUCTO_SERVICIO_2"].isin(top_productos), "OTROS"
     )
-    req["SUBM"] = req["SUBMOTIVO_2"].where(
-        req["SUBMOTIVO_2"].isin(top_submotivos), "OTROS"
-    )
+    req["SUBM"] = req["SUBMOTIVO_2"].where(req["SUBMOTIVO_2"].isin(top_submotivos), "OTROS")
     req["TIPO_DICT"] = req["TIPO_REQUERIMIENTO2"] + "_" + req["DICTAMEN"]
 
     # Categorías fijas: train y OOT generan las mismas columnas aunque falte un valor
@@ -69,17 +67,13 @@ def build_req_features(
         ("PROD", "REQ_PROD"),
         ("SUBM", "REQ_SUBM"),
     ]:
-        conteo = pd.crosstab(req[id_col], req[col]).reindex(
-            columns=categorias[col], fill_value=0
-        )
+        conteo = pd.crosstab(req[id_col], req[col]).reindex(columns=categorias[col], fill_value=0)
         conteo.columns = [f"{prefijo}_{_slug(c)}" for c in conteo.columns]
         partes.append(conteo)
     return pd.concat(partes, axis=1)
 
 
-def build_lag_features(
-    cli: pd.DataFrame, lag_prefixes: list, n_lags: int = 6
-) -> pd.DataFrame:
+def build_lag_features(cli: pd.DataFrame, lag_prefixes: list, n_lags: int = 6) -> pd.DataFrame:
     nuevas = {}
     for p in lag_prefixes:
         cols = [f"{p}_MENOS{i}" for i in range(n_lags)]
