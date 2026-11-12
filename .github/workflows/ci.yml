@@ -36,17 +36,7 @@ jobs:
       - name: Revisar estilo e imports
         run: python -m ruff check .
       - name: Ejecutar pruebas
-        run: |
-          set +e
-          python -m pytest --junitxml=test-results/pytest.xml
-          pytest_exit_code=$?
-          set -e
-          if [ "$pytest_exit_code" -eq 5 ]; then
-            echo '::notice::Pruebas pendientes: el equipo todavía no ha añadido casos.'
-            echo 'Pruebas pendientes. Solo se verificaron la instalación y el estilo.' >> "$GITHUB_STEP_SUMMARY"
-          else
-            exit "$pytest_exit_code"
-          fi
+        run: python -m pytest --junitxml=test-results/pytest.xml
       - name: Conservar resultado de pruebas
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
