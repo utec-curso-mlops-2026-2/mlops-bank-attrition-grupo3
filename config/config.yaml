@@ -24,6 +24,14 @@ split:
   test_size: 0.3
   random_state: 42
 
+train:
+  selection_metric: test_auc        # criterio explícito para elegir el mejor modelo
+  threshold: 0.5                    # umbral para la matriz de confusión
+  models:
+    logreg: {C: 1.0, max_iter: 2000, class_weight: balanced}
+    random_forest: {n_estimators: 300, max_depth: 8, min_samples_leaf: 50, class_weight: balanced, n_jobs: -1, random_state: 42}
+    lightgbm: {n_estimators: 400, learning_rate: 0.05, num_leaves: 31, subsample: 0.8, subsample_freq: 1, colsample_bytree: 0.8, is_unbalance: true, random_state: 42, verbose: -1}
+
 mlflow:
   model_name: workspace.bank_attrition.attrition_model
   min_auc_test: 0.70
