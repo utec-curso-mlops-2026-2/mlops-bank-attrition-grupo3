@@ -48,3 +48,7 @@ monitoring:
 mlflow:
   model_name: workspace.bank_attrition.attrition_model
   min_auc_test: 0.70
+
+api:
+  base_fields: [FLG_BANCARIZADO, RANG_INGRESO, FLAG_LIMA_PROVINCIA, EDAD, ANTIGUEDAD, RANG_SDO_PASIVO_MENOS0, RANG_NRO_PRODUCTOS_MENOS0, FLG_NOMINA]
+  categorical_fields: [RANG_INGRESO, FLAG_LIMA_PROVINCIA, RANG_SDO_PASIVO_MENOS0, RANG_NRO_PRODUCTOS_MENOS0]
