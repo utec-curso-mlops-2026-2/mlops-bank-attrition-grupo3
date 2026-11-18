@@ -1,7 +1,9 @@
 """Cruce clientes + requerimientos y construcción de features (1 fila por cliente)."""
 
 import argparse
+import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -109,17 +111,42 @@ def build_features(
     return df
 
 
-def run(split: str, config_path: str = "config/config.yaml") -> Path:
+def run(split: str, config_path: str = "config/config.yaml", client=None) -> str:
+    """Leer los crudos (S3 o local), construir features y guardar su linaje."""
+    from dotenv import load_dotenv
+
+    from bank_attrition import data
+
+    load_dotenv()
     cfg = load_config(config_path)
     d, fcfg = cfg["data"], cfg["features"]
-    raw = Path(d["raw_path"])
-    cli = pd.read_csv(raw / d[f"clientes_{split}"])
-    req = pd.read_csv(raw / d[f"req_{split}"])
-    df = build_features(cli, req, fcfg["corte"][split], fcfg, d["id_col"])
-    out = Path(fcfg["output_path"]) / f"{split}.parquet"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(out, index=False)
-    print(f"{split}: {df.shape} -> {out}")
+    raw = data.resolve(d["raw_path"])
+    if not raw.rstrip("/").endswith(str(d["data_version"])):
+        raise ValueError(f"raw_path ({raw}) debe terminar en data_version ({d['data_version']}).")
+    manifest_path = d.get("manifest")
+    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8")) if manifest_path else None
+
+    frames, sources = {}, []
+    for name in (f"clientes_{split}", f"req_{split}"):
+        frames[name], info = data.read_csv(data.join(raw, d[name]), client=client)
+        data.check_against_manifest(info, d[name], manifest)
+        sources.append(info)
+
+    df = build_features(
+        frames[f"clientes_{split}"], frames[f"req_{split}"], fcfg["corte"][split], fcfg, d["id_col"]
+    )
+    out = data.join(fcfg["output_path"], f"{split}.parquet")
+    features_info = data.write_parquet(df, out, client=client)
+    lineage = {
+        "split": split,
+        "data_version": str(d["data_version"]),
+        "codmes_corte": fcfg["corte"][split],
+        "raw": sources,
+        "features": features_info,
+        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    data.write_json(lineage, data.join(fcfg["output_path"], f"{split}_lineage.json"), client=client)
+    print(f"{split}: {df.shape} -> {out} (version {features_info['version_id']})")
     return out
 
 

@@ -3,13 +3,13 @@
 import argparse
 import os
 from datetime import date
-from pathlib import Path
 
 import mlflow
 import pandas as pd
 from dotenv import load_dotenv
 from mlflow.tracking import MlflowClient
 
+from bank_attrition import data
 from bank_attrition.features import load_config
 from bank_attrition.monitoring import drift_report, psi_numeric, semaforo
 
@@ -39,15 +39,15 @@ def run(config_path: str = "config/config.yaml") -> None:
     load_dotenv()
     cfg = load_config(config_path)
     d, bcfg, mon = cfg["data"], cfg["batch"], cfg["monitoring"]
-    feats = Path(cfg["features"]["output_path"])
+    feats = cfg["features"]["output_path"]
     codmes = cfg["features"]["corte"]["oot"]
 
     model_name, alias = cfg["mlflow"]["model_name"], bcfg["model_alias"]
     version = MlflowClient().get_model_version_by_alias(model_name, alias).version
     model = mlflow.pyfunc.load_model(f"models:/{model_name}@{alias}")
 
-    oot = pd.read_parquet(feats / "oot.parquet")
-    ref = pd.read_parquet(feats / "train.parquet")
+    oot, oot_info = data.read_parquet(data.join(feats, "oot.parquet"))
+    ref, ref_info = data.read_parquet(data.join(feats, "train.parquet"))
     X_oot = oot.drop(columns=[d["id_col"]])
     X_ref = ref.drop(columns=[d["id_col"], d["target_col"]])
     num_cols = X_oot.select_dtypes(include="number").columns
@@ -69,17 +69,23 @@ def run(config_path: str = "config/config.yaml") -> None:
     psi_score = psi_numeric(score(model, X_ref), prob, mon["bins"])
     estado_score = semaforo(psi_score, mon["psi_alerta"], mon["psi_critico"])
 
-    out_dir = Path(bcfg["output_path"]) / str(codmes)
-    mon_dir = Path(mon["output_path"]) / str(codmes)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    mon_dir.mkdir(parents=True, exist_ok=True)
-    scores.to_csv(out_dir / "scores.csv", index=False)
-    report.to_csv(mon_dir / "psi_variables.csv", index=False)
+    scores_info = data.write_csv(scores, data.join(bcfg["output_path"], codmes, "scores.csv"))
+    report_info = data.write_csv(
+        report, data.join(mon["output_path"], codmes, "psi_variables.csv")
+    )
 
     mlflow.set_experiment(os.getenv("MLFLOW_EXPERIMENT_NAME", "utec-bank-attrition"))
-    with mlflow.start_run(
-        run_name=f"batch_{codmes}", tags={"pipeline": "batch", "model_version": version}
-    ):
+    tags = {
+        "pipeline": "batch",
+        "model_version": version,
+        "data_version": d["data_version"],
+        "data_path": oot_info["uri"],
+        "data_sha256": oot_info["sha256"],
+        "data_s3_version_id": str(oot_info["version_id"]),
+        "reference_path": ref_info["uri"],
+        "scores_path": scores_info["uri"],
+    }
+    with mlflow.start_run(run_name=f"batch_{codmes}", tags=tags):
         mlflow.log_params({"model_name": model_name, "alias": alias, "codmes": codmes})
         mlflow.log_metrics(
             {
@@ -91,11 +97,10 @@ def run(config_path: str = "config/config.yaml") -> None:
             }
         )
         mlflow.set_tag("estado_score", estado_score)
-        mlflow.log_artifact(str(mon_dir / "psi_variables.csv"), "monitoring")
+        mlflow.log_text(report.to_csv(index=False), "monitoring/psi_variables.csv")
 
-    print(
-        f"Scores: {out_dir / 'scores.csv'} ({len(scores)} clientes, modelo v{version})"
-    )
+    print(f"Scores: {scores_info['uri']} ({len(scores)} clientes, modelo v{version})")
+    print(f"Drift: {report_info['uri']}")
     print(
         f"PSI score: {psi_score:.4f} ({estado_score}) | "
         f"variables en alerta/crítico: {(report['estado'] != 'estable').sum()}"
