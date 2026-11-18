@@ -4,11 +4,9 @@ import argparse
 import getpass
 import os
 import subprocess
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import mlflow
-import pandas as pd
 from dotenv import load_dotenv
 from lightgbm import LGBMClassifier
 from mlflow.models import infer_signature
@@ -18,6 +16,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
+from bank_attrition import data
 from bank_attrition.evaluate import (
     compute_metrics,
     feature_importance,
@@ -96,8 +95,11 @@ def run(config_path: str = "config/config.yaml") -> None:
     load_dotenv()
     cfg = load_config(config_path)
     d, tcfg, mcfg = cfg["data"], cfg["train"], cfg["mlflow"]
-    feats_path = Path(cfg["features"]["output_path"]) / "train.parquet"
-    df = pd.read_parquet(feats_path)
+    feats_path = data.join(cfg["features"]["output_path"], "train.parquet")
+    df, feats_info = data.read_parquet(feats_path)
+    lineage = data.read_json(data.join(cfg["features"]["output_path"], "train_lineage.json"))
+    if lineage["features"]["sha256"] != feats_info["sha256"]:
+        raise ValueError("train.parquet no coincide con su linaje; vuelva a generar las features.")
 
     X = df.drop(columns=[d["id_col"], d["target_col"]])
     y = df[d["target_col"]]
@@ -116,11 +118,16 @@ def run(config_path: str = "config/config.yaml") -> None:
     tags = {
         "git_commit": git_commit(),
         "data_version": d["data_version"],
-        "data_path": str(feats_path),
+        "data_path": feats_path,
+        "data_sha256": feats_info["sha256"],
+        "data_s3_version_id": str(feats_info["version_id"]),
+        "raw_path": data.resolve(d["raw_path"]),
         "author": os.getenv("GITHUB_ACTOR", getpass.getuser()),
     }
 
     with mlflow.start_run(run_name="training_pipeline", tags=tags):
+        # Linaje completo: crudos (URI, VersionId, SHA-256) -> features -> este run.
+        mlflow.log_dict(lineage, "data/train_lineage.json")
         mlflow.log_params(
             {
                 "test_size": cfg["split"]["test_size"],

@@ -1,6 +1,10 @@
 data:
-  raw_path: data/raw/202611          # luego: s3://<bucket>/raw/202611
+  # Datos crudos versionados por fecha de corte en S3: s3://<bucket>/raw/<yyyymm>/.
+  # El bucket viene de MLOPS_DATA_BUCKET (.env o GitHub Secrets/Variables), no se versiona aquí.
+  # Para una nueva entrega: nueva carpeta raw/<yyyymm>, data_version y manifiesto.
+  raw_path: s3://${MLOPS_DATA_BUCKET}/raw/202611
   data_version: "202611"
+  manifest: docs/manifiesto_datos.json   # SHA-256 y VersionId esperados de cada archivo
   clientes_train: train_clientes_sample.csv
   req_train: train_requerimientos_sample.csv
   clientes_oot: oot_clientes_sample.csv
@@ -9,7 +13,7 @@ data:
   target_col: ATTRITION
 
 features:
-  output_path: data/features/202611
+  output_path: s3://${MLOPS_DATA_BUCKET}/features/202611   # + <split>_lineage.json
   n_meses_req: 5
   corte:
     train: 202407
@@ -34,9 +38,9 @@ train:
 
 batch:
   model_alias: champion
-  output_path: data/scores          # luego: s3://<bucket>/scores
+  output_path: s3://${MLOPS_DATA_BUCKET}/scores        # /<codmes>/scores.csv
 monitoring:
-  output_path: data/monitoring      # luego: s3://<bucket>/monitoring
+  output_path: s3://${MLOPS_DATA_BUCKET}/monitoring    # /<codmes>/psi_variables.csv
   bins: 10
   psi_alerta: 0.10
   psi_critico: 0.25
