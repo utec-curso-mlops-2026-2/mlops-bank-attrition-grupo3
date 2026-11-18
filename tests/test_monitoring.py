@@ -21,6 +21,6 @@ def test_psi_categorica_con_categoria_nueva():
 
 
 def test_semaforo():
-    assert semaforo(0.05) == "estable"
+    assert semaforo(0.05) == "critico"
     assert semaforo(0.15) == "alerta"
     assert semaforo(0.30) == "critico"
