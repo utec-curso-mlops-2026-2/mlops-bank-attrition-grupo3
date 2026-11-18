@@ -32,6 +32,15 @@ train:
     random_forest: {n_estimators: 300, max_depth: 8, min_samples_leaf: 50, class_weight: balanced, n_jobs: -1, random_state: 42}
     lightgbm: {n_estimators: 400, learning_rate: 0.05, num_leaves: 31, subsample: 0.8, subsample_freq: 1, colsample_bytree: 0.8, is_unbalance: true, random_state: 42, verbose: -1}
 
+batch:
+  model_alias: champion
+  output_path: data/scores          # luego: s3://<bucket>/scores
+monitoring:
+  output_path: data/monitoring      # luego: s3://<bucket>/monitoring
+  bins: 10
+  psi_alerta: 0.10
+  psi_critico: 0.25
+
 mlflow:
   model_name: workspace.bank_attrition.attrition_model
   min_auc_test: 0.70
