@@ -101,6 +101,8 @@ def run(config_path: str = "config/config.yaml") -> None:
 
     X = df.drop(columns=[d["id_col"], d["target_col"]])
     y = df[d["target_col"]]
+    num_cols, cat_cols = split_columns(X, d["id_col"], d["target_col"])
+    X = X.astype({c: "float64" for c in num_cols})
     X_tr, X_te, y_tr, y_te = train_test_split(
         X,
         y,
@@ -108,7 +110,6 @@ def run(config_path: str = "config/config.yaml") -> None:
         random_state=cfg["split"]["random_state"],
         stratify=y,
     )
-    num_cols, cat_cols = split_columns(X, d["id_col"], d["target_col"])
 
     mlflow.set_experiment(os.getenv("MLFLOW_EXPERIMENT_NAME", "utec-bank-attrition"))
     mlflow.sklearn.autolog(log_models=False, log_datasets=False, silent=True)
