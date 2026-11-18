@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "status": "pendiente",
+  "status": "registrado",
   "dataset_release": "202611",
-  "recorded_at_utc": "2026-11-11T00:18:12.924975+00:00",
+  "recorded_at_utc": "2026-11-18T03:15:07.713616+00:00",
   "source_system": "s3",
   "provenance_url": "https://www.kaggle.com/datasets/jhonyjacobi/bank-attrition-detection",
   "instructions": "Completar con la entrega oficial en S3. null significa no registrado, no un valor confirmado. Usar SHA-256 del archivo leído; registrar VersionId cuando exista. No usar ETag como sustituto automático de SHA-256. Actualizar también el nombre del diccionario si cambia.",
@@ -15,45 +15,45 @@
     {
       "logical_name": "train_clientes",
       "filename": "train_clientes_sample.csv",
-      "status": "pendiente",
-      "source_uri": "local://d:/Descargas/Opera/Curso_MLOPS/mlops-bank-attrition-grupo3/data/raw/202611/train_clientes_sample.csv",
-      "version_id": null,
+      "status": "registrado",
+      "source_uri": "s3://utec-mlops-grupo3-654654589924/raw/202611/train_clientes_sample.csv",
+      "version_id": "Hd.GWXxj1V6u8E8lRLKj_Hndq5LPbcOB",
       "sha256": "9f4c909dbfa225beb25f968f0eeb3ce190269ed1d490dd30af0fdf3339839356",
       "row_count": 56000
     },
     {
       "logical_name": "train_requerimientos",
       "filename": "train_requerimientos_sample.csv",
-      "status": "pendiente",
-      "source_uri": "local://d:/Descargas/Opera/Curso_MLOPS/mlops-bank-attrition-grupo3/data/raw/202611/train_requerimientos_sample.csv",
-      "version_id": null,
+      "status": "registrado",
+      "source_uri": "s3://utec-mlops-grupo3-654654589924/raw/202611/train_requerimientos_sample.csv",
+      "version_id": "Nh4aCxAMhUrzpXpQTXrHxwY2JmR6Tf1O",
       "sha256": "4d986f2ad6b821b72c84c7e3c29aab492be4f18802b871aa02e5c90c3413ceec",
       "row_count": 41313
     },
     {
       "logical_name": "oot_clientes",
       "filename": "oot_clientes_sample.csv",
-      "status": "pendiente",
-      "source_uri": "local://d:/Descargas/Opera/Curso_MLOPS/mlops-bank-attrition-grupo3/data/raw/202611/oot_clientes_sample.csv",
-      "version_id": null,
+      "status": "registrado",
+      "source_uri": "s3://utec-mlops-grupo3-654654589924/raw/202611/oot_clientes_sample.csv",
+      "version_id": "0LyyvOsN1X8F_s1Rb0VtTEbUOPI65LGN",
       "sha256": "471d9c4a697e0e6462156afae5980a411c0bbaa5d5cbe6872dfbaf12314ff68d",
       "row_count": 14000
     },
     {
       "logical_name": "oot_requerimientos",
       "filename": "oot_requerimientos_sample.csv",
-      "status": "pendiente",
-      "source_uri": "local://d:/Descargas/Opera/Curso_MLOPS/mlops-bank-attrition-grupo3/data/raw/202611/oot_requerimientos_sample.csv",
-      "version_id": null,
+      "status": "registrado",
+      "source_uri": "s3://utec-mlops-grupo3-654654589924/raw/202611/oot_requerimientos_sample.csv",
+      "version_id": "M1YQCaVmMCCGzmN9dYl_p3wnLGhvIp8S",
       "sha256": "4569a48779a1c28cb566ae8dcad6f6fb9264dec60d315ad880e7c1d82454bca1",
       "row_count": 10104
     },
     {
       "logical_name": "diccionario",
       "filename": "diccionario_datos.xlsx",
-      "status": "pendiente",
-      "source_uri": "local://d:/Descargas/Opera/Curso_MLOPS/mlops-bank-attrition-grupo3/data/raw/202611/diccionario_datos.xlsx",
-      "version_id": null,
+      "status": "registrado",
+      "source_uri": "s3://utec-mlops-grupo3-654654589924/raw/202611/diccionario_datos.xlsx",
+      "version_id": "3iAPTodJSOtCGR0YkAV1wasjYjbMKFC5",
       "sha256": "342f511dbda5c72067ad960e29af37cbf8e77ef3f03e129d9352295ec2cd85d1"
     }
   ],

@@ -2,7 +2,56 @@
 
 ## Fuentes
 Kaggle: jhonyjacobi/bank-attrition-detection. Versión 202611 (ver manifiesto_datos.json).
-Ubicación actual: local `data/raw/202611/` (pendiente migración a S3).
+Ubicación: S3, versionado por fecha de corte (ver "Almacenamiento y versionamiento en S3").
+
+## Almacenamiento y versionamiento en S3
+
+Un bucket del equipo, con versionado de objetos activado, cuyo nombre vive en `MLOPS_DATA_BUCKET`
+(`.env` en local, GitHub Secrets/Variables en Actions). Nunca se escribe en el repositorio.
+
+```
+s3://<bucket>/
+├── raw/202611/                 # crudos de Kaggle tal cual; una carpeta por entrega (yyyymm)
+├── features/202611/            # train.parquet, oot.parquet y <split>_lineage.json
+├── scores/<codmes>/scores.csv  # salida de la inferencia batch
+└── monitoring/<codmes>/psi_variables.csv
+```
+
+Dos niveles de versión:
+- **Entrega de datos** (`raw/<yyyymm>/`): inmutable. Si cambian los datos, se crea una carpeta nueva,
+  se actualizan `data_version` y `raw_path` en `config/config.yaml` y el manifiesto.
+- **Objeto** (`VersionId` de S3): `docs/manifiesto_datos.json` guarda el SHA-256 y el `VersionId`
+  de cada archivo. `features.py` rechaza leer un archivo cuyo SHA-256 no coincida con el manifiesto.
+
+Trazabilidad: cada ejecución de features escribe `<split>_lineage.json` (URI, `VersionId` y SHA-256
+de los crudos y de las features). Cada run de MLflow de entrenamiento y batch registra los tags
+`data_version`, `data_path`, `data_sha256`, `data_s3_version_id` y `raw_path`; el de entrenamiento
+guarda además el linaje completo como artefacto `data/train_lineage.json`.
+
+### Preparar el bucket (una vez por equipo)
+
+```bash
+export MLOPS_DATA_BUCKET=<nombre-unico-del-bucket>   # también en .env
+aws s3api create-bucket --bucket "$MLOPS_DATA_BUCKET" --region us-east-1
+aws s3api put-bucket-versioning --bucket "$MLOPS_DATA_BUCKET" \
+  --versioning-configuration Status=Enabled
+aws s3api put-public-access-block --bucket "$MLOPS_DATA_BUCKET" \
+  --public-access-block-configuration \
+  BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+```
+
+### Subir una entrega y generar features
+
+```bash
+# Los CSV de Kaggle en data/raw/202611/ (excluidos de Git)
+python -m bank_attrition.data subir --origen data/raw/202611
+python -m bank_attrition.features --split train
+python -m bank_attrition.features --split oot
+```
+
+`subir` valida SHA-256 y filas contra el manifiesto antes de escribir, no sobrescribe un objeto
+existente con otro contenido, es idempotente y completa `source_uri` y `version_id` en
+`docs/manifiesto_datos.json`. Hay que commitear el manifiesto actualizado.
 
 ## Esquema y llaves
 - Clientes: 1 fila por `ID_CORRELATIVO` (único). Variables `_MENOS0..5` = últimos 6 meses.
