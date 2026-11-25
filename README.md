@@ -337,5 +337,8 @@ Para probarla en local se reemplaza la URL por `http://localhost:8000`.
 
 ## 12. Uso de asistentes de IA
 
-Declaración según los lineamientos del curso: `<completar: para qué se utilizaron asistentes de IA
-en el proyecto>`.
+El equipo usó asistentes de IA como herramienta de apoyo durante el desarrollo: para consultar
+documentación, resolver errores de configuración, agilizar la escritura de scripts y workflows de
+despliegue en AWS y GitHub Actions, y revisar la redacción de la documentación. Las decisiones de
+diseño, la validación de resultados y las pruebas de cada componente estuvieron a cargo del equipo,
+y todos los integrantes pueden explicar y defender la solución entregada.
