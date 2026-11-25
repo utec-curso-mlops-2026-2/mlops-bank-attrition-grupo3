@@ -177,6 +177,23 @@ def run(config_path: str = "config/config.yaml") -> None:
         )
         mlflow.set_tag("registry_alias", alias)
         print(f"Mejor: {best} | versión {version} | resultado: {alias}")
+        write_github_outputs(
+            run_id=mlflow.active_run().info.run_id,
+            best_model=best,
+            test_auc=f"{best_metrics['test_auc']:.4f}",
+            model_version=version,
+            alias=alias,
+        )
+
+
+def write_github_outputs(**values) -> None:
+    """Publica valores como outputs del step cuando corre en GitHub Actions."""
+    path = os.getenv("GITHUB_OUTPUT")
+    if not path:
+        return
+    with open(path, "a", encoding="utf-8") as fh:
+        for key, value in values.items():
+            fh.write(f"{key}={value}\n")
 
 
 if __name__ == "__main__":
