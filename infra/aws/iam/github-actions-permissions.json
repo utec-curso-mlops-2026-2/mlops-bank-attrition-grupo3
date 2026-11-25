@@ -1,0 +1,71 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DatosProyecto",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetBucketVersioning", "s3:ListBucketVersions"],
+      "Resource": "arn:aws:s3:::mlops-bank-attrition-grupo3-484815418393"
+    },
+    {
+      "Sid": "ObjetosProyecto",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::mlops-bank-attrition-grupo3-484815418393/*"
+    },
+    {
+      "Sid": "EcrLogin",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrRepositorios",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:CreateRepository", "ecr:DescribeRepositories", "ecr:DescribeImages",
+        "ecr:BatchCheckLayerAvailability", "ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer",
+        "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload", "ecr:PutImage",
+        "ecr:PutLifecyclePolicy", "ecr:SetRepositoryPolicy", "ecr:GetRepositoryPolicy"
+      ],
+      "Resource": "arn:aws:ecr:us-east-2:484815418393:repository/bank-attrition-*"
+    },
+    {
+      "Sid": "DesplieguePorPrefijo",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:*",
+        "scheduler:*",
+        "ecs:*",
+        "logs:*"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-2:484815418393:function:bank-attrition-*",
+        "arn:aws:scheduler:us-east-2:484815418393:schedule/*/bank-attrition-*",
+        "arn:aws:scheduler:us-east-2:484815418393:schedule-group/*",
+        "arn:aws:ecs:us-east-2:484815418393:*",
+        "arn:aws:logs:us-east-2:484815418393:log-group:*bank-attrition*"
+      ]
+    },
+    {
+      "Sid": "LecturasSinRecurso",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:ListFunctions", "lambda:GetAccountSettings",
+        "ecs:RegisterTaskDefinition", "ecs:DeregisterTaskDefinition", "ecs:DescribeTaskDefinition",
+        "ecs:ListTaskDefinitions", "ecs:CreateCluster", "ecs:ListClusters",
+        "logs:DescribeLogGroups",
+        "ec2:DescribeSubnets", "ec2:DescribeVpcs", "ec2:DescribeSecurityGroups",
+        "apigateway:GET", "apigateway:POST", "apigateway:PUT", "apigateway:PATCH", "apigateway:DELETE",
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PasarRolesDelProyecto",
+      "Effect": "Allow",
+      "Action": ["iam:PassRole", "iam:GetRole"],
+      "Resource": "arn:aws:iam::484815418393:role/bank-attrition-*"
+    }
+  ]
+}

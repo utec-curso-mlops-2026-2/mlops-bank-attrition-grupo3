@@ -1,0 +1,24 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "GitHubActionsOIDC",
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::484815418393:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": [
+            "repo:utec-curso-mlops-2026-2/mlops-bank-attrition-grupo3:ref:refs/heads/master",
+            "repo:utec-curso-mlops-2026-2/mlops-bank-attrition-grupo3:ref:refs/heads/develop"
+          ]
+        }
+      }
+    }
+  ]
+}
