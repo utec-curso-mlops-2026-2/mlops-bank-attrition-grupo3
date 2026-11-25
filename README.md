@@ -333,12 +333,6 @@ Para probarla en local se reemplaza la URL por `http://localhost:8000`.
 | Manuel Reyes Quispe | `ManuelReyes10` | Documentación y arquitectura: README, diagrama, decisiones técnicas e informe técnico |
 | Alvaro Tauma Salvador | `alcetasa` | Monitoreo y evidencias: plan de model/concept drift, anexo de evidencias y demo |
 
----|---|---|
-| Carlos Lazaro | `clazzarlos` | `<completar>` |
-| Renzo `<completar apellido>` | `Senzouz` | `<completar>` |
-| Manuel Reyes | `ManuelReyes10` | Documentación, arquitectura y README |
-| `<completar>` | `<usuario>` | `<completar>` |
-
 ---
 
 ## 12. Uso de asistentes de IA
