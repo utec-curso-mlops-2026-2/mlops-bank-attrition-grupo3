@@ -59,7 +59,7 @@ Repositorio: <https://github.com/utec-curso-mlops-2026-2/mlops-bank-attrition-gr
 | [Ejecución 45527607101](https://github.com/utec-curso-mlops-2026-2/mlops-bank-attrition-grupo3/actions/runs/45527607101), [45529104899](https://github.com/utec-curso-mlops-2026-2/mlops-bank-attrition-grupo3/actions/runs/45529104899) · [salida](evidencias/salidas/R6_train_workflow.txt) | **Entrenamiento** (`train.yml`), disparado por push a `develop`. Tres jobs encadenados, con artefacto de linaje y outputs entre jobs |
 | [salidas/R6_credenciales_oidc.txt](evidencias/salidas/R6_credenciales_oidc.txt) | Credenciales: AWS por OIDC (sin claves) y Databricks en GitHub Secrets |
 | [salidas/R6_R8_recursos_aws.txt](evidencias/salidas/R6_R8_recursos_aws.txt) | Imagen en ECR y Lambdas desplegadas |
-| 31 *(pendiente)* | Captura de la ejecución de `train.yml` con el resumen |
+| [31](evidencias/31.%20R6%20-%20Workflow%20de%20entrenamiento%20en%20GitHub%20Actions.png) | `train.yml` disparado por push a `develop`: 3 jobs en verde y resumen (LightGBM, AUC 0.8363, v4 `challenger`) |
 | 32 *(pendiente)* | Captura de la ejecución de **CD** (`cd.yml`) al integrar a `master`, con la prueba de humo |
 
 ## R7. Inferencia batch en AWS con scheduling
@@ -70,8 +70,8 @@ Repositorio: <https://github.com/utec-curso-mlops-2026-2/mlops-bank-attrition-gr
 | [salidas/R7_schedule_eventbridge.txt](evidencias/salidas/R7_schedule_eventbridge.txt) | Schedule `bank-attrition-batch-mensual`: `cron(0 6 1 * ? *)` en America/Lima |
 | [salidas/R7_cloudwatch_batch.txt](evidencias/salidas/R7_cloudwatch_batch.txt) | **Ejecución automática** lanzada por EventBridge Scheduler el 2026-11-25 a las 01:42 UTC: 14 000 clientes scoreados en 14.5 s, logs en CloudWatch |
 | [salidas/R7_R9_salidas_s3.txt](evidencias/salidas/R7_R9_salidas_s3.txt) | `scores.csv` versionado en S3 con id, probabilidad, decil, segmento, fecha y versión del modelo |
-| 33 *(pendiente)* | Captura del schedule en la consola de EventBridge |
-| 34 *(pendiente)* | Captura de los logs en CloudWatch |
+| [33](evidencias/33.%20R7%20-%20Schedule%20mensual%20en%20EventBridge.png) | Schedule `bank-attrition-batch-mensual` habilitado, con destino la Lambda `bank-attrition-batch` |
+| [34](evidencias/34.%20R7%20-%20Logs%20del%20batch%20en%20CloudWatch.png) | Log group `/aws/lambda/bank-attrition-batch` con el stream de la ejecución automática (contenido en [R7_cloudwatch_batch.txt](evidencias/salidas/R7_cloudwatch_batch.txt)) |
 
 ## R8. Inferencia online en AWS
 
@@ -80,7 +80,7 @@ Repositorio: <https://github.com/utec-curso-mlops-2026-2/mlops-bank-attrition-gr
 | [14](evidencias/14.%20R8%20-%20Ejecuci%C3%B3n%20exitosa%20con%20API%20Local.png)–[16](evidencias/16.%20R8%20-%20Ejecuci%C3%B3n%20fallida%20adrede.png) | API local, OpenAPI y error de validación |
 | [salidas/R8_api_aws.txt](evidencias/salidas/R8_api_aws.txt) | **API en AWS** (Lambda + Function URL): `/health` 200, `/predict` 200 con `prob_fuga=0.639375`, entrada inválida 422 |
 | [README §6](../README.md#6-cómo-invocar-el-endpoint) | Ejemplo de request y response con la URL pública |
-| 35 *(pendiente)* | Captura de la Lambda `bank-attrition-api` con su Function URL |
+| [35](evidencias/35.%20R8%20-%20Lambda%20de%20la%20API%20con%20Function%20URL.png) | Lambda `bank-attrition-api`: imagen arm64 desde ECR y Function URL pública |
 
 ## R9. Monitoreo
 
@@ -99,7 +99,6 @@ Repositorio: <https://github.com/utec-curso-mlops-2026-2/mlops-bank-attrition-gr
 
 ## Pendientes
 
-- Capturas 31–35.
 - Ejecución de `cd.yml` al integrar a `master`.
 - `monitoreo.md`.
 - Informe técnico en PDF.
