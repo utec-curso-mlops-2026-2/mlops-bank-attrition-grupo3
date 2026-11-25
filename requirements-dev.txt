@@ -1,3 +1,5 @@
 pytest==8.4.2
 ruff==0.14.3
 httpx2==2.16.2
+# Necesario para usar credenciales de `aws login` en local (no en CI).
+botocore[crt]>=1.43,<1.44
