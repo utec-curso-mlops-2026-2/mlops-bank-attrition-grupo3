@@ -6,8 +6,8 @@ Solución MLOps de punta a punta que predice qué clientes del segmento personas
 mayor probabilidad de **fugar en los próximos 6 meses**: desde los datos crudos versionados en S3
 hasta el modelo registrado en MLflow, servido en batch y online y monitoreado con PSI.
 
-> **Estado:** las secciones marcadas con 🚧 están en implementación (despliegue en AWS y workflows de
-> entrenamiento/CD). Se actualizarán cuando se integren a `develop`.
+> **Estado:** solución desplegada en AWS (`us-east-2`). La API online está en
+> `https://pogsqiglzkxpvjojqncmtxchse0xaswn.lambda-url.us-east-2.on.aws/` y el batch corre de forma programada el día 1 de cada mes.
 
 ---
 
@@ -36,8 +36,8 @@ flowchart LR
         DEV["Desarrollador<br/>feature/*"] -->|"Pull Request"| CI["CI: ruff + pytest"]
         CI -->|"merge"| DEVELOP["develop"]
         DEVELOP -->|"PR release"| MASTER["master"]
-        TRAIN_WF["train.yml<br/>workflow_dispatch"]
-        CD_WF["cd.yml 🚧<br/>al integrar a master"]
+        TRAIN_WF["train.yml<br/>manual o push a develop"]
+        CD_WF["cd.yml<br/>al integrar a master"]
         MASTER --> CD_WF
     end
 
@@ -58,14 +58,16 @@ flowchart LR
     FEAT --> EXP
     EXP -->|"validación AUC ≥ 0.70"| REG
 
-    subgraph AWS["AWS 🚧"]
-        EB["EventBridge<br/>schedule mensual"] --> BATCH["Job batch<br/>batch.py"]
-        API["Endpoint REST<br/>api.py (FastAPI)"]
+    subgraph AWS["AWS us-east-2"]
+        ECR["ECR<br/>imagen arm64"]
+        EB["EventBridge Scheduler<br/>día 1, 06:00 Lima"] --> BATCH["Lambda<br/>bank-attrition-batch"]
+        API["Lambda + Function URL<br/>bank-attrition-api"]
         CW["CloudWatch Logs"]
     end
 
-    CD_WF --> BATCH
-    CD_WF --> API
+    CD_WF -->|"build + push"| ECR
+    ECR --> BATCH
+    ECR --> API
     REG -->|"models:/...@champion"| BATCH
     REG -->|"models:/...@champion"| API
     FEAT --> BATCH
@@ -99,7 +101,9 @@ Todos los parámetros (rutas, semillas, hiperparámetros, umbrales) están en
 ## 4. Requisitos y configuración
 
 - Python **3.11 – 3.13** (el CI usa 3.12)
-- Cuenta de AWS con un bucket S3 con versionado activado
+- Cuenta de AWS (región `us-east-2`) con un bucket S3 con versionado activado. La infraestructura y
+  cómo recrearla están en [`infra/aws/`](infra/aws/README.md)
+- Docker, solo para construir la imagen de inferencia a mano
 - Workspace de Databricks con MLflow (tracking server y Model Registry en Unity Catalog)
 
 ```bash
@@ -118,7 +122,7 @@ Variables principales de `.env` (en GitHub Actions van como **Secrets/Variables*
 
 | Variable | Descripción |
 |---|---|
-| `AWS_PROFILE`, `AWS_REGION` | Perfil local de AWS (no se guardan claves en el repo) |
+| `AWS_PROFILE`, `AWS_DEFAULT_REGION` | Perfil local de AWS, p. ej. `aws login --profile mlops-personal --region us-east-2`. No se guardan claves en el repo |
 | `MLOPS_DATA_BUCKET` | Bucket S3 del equipo |
 | `DATABRICKS_HOST`, `DATABRICKS_TOKEN` | Acceso al workspace de Databricks |
 | `MLFLOW_TRACKING_URI=databricks` | Tracking server remoto |
@@ -163,7 +167,15 @@ Salidas:
 - `s3://<bucket>/monitoring/202408/psi_variables.csv`: PSI por variable y semáforo
 - Run `batch_202408` en MLflow con `psi_score`, `n_vars_alerta`, `n_vars_critico` y el linaje de datos
 
-🚧 *Ejecución programada mensual con EventBridge y logs en CloudWatch: en implementación.*
+**En AWS:** la Lambda `bank-attrition-batch` recalcula las features OOT y ejecuta este mismo
+pipeline. La lanza **EventBridge Scheduler** (`bank-attrition-batch-mensual`,
+`cron(0 6 1 * ? *)` en `America/Lima`, es decir el día 1 de cada mes a las 06:00). Los logs quedan
+en CloudWatch, en `/aws/lambda/bank-attrition-batch`. Para ejecutarla a mano:
+
+```bash
+aws lambda invoke --function-name bank-attrition-batch --cli-read-timeout 900 \
+  --payload '{"origen":"manual"}' --cli-binary-format raw-in-base64-out salida.json
+```
 
 ### 5.4 Inferencia online (API)
 
@@ -172,7 +184,15 @@ uvicorn bank_attrition.api:app --host 0.0.0.0 --port 8000
 # Documentación interactiva: http://localhost:8000/docs
 ```
 
-🚧 *Despliegue del endpoint en AWS: en implementación. Aquí se documentará la URL pública.*
+**En AWS:** la Lambda `bank-attrition-api` sirve la misma app FastAPI (con Mangum) detrás de una
+**Function URL** pública:
+
+```
+https://pogsqiglzkxpvjojqncmtxchse0xaswn.lambda-url.us-east-2.on.aws/
+```
+
+La primera llamada después de un rato sin uso tarda unos 25 s, porque la Lambda arranca y descarga
+el modelo `@champion` del Registry. Las siguientes responden en alrededor de 1 s.
 
 ### 5.5 Pruebas y estilo
 
@@ -188,7 +208,7 @@ python -m pytest
 **Health check**
 
 ```bash
-curl http://localhost:8000/health
+curl https://pogsqiglzkxpvjojqncmtxchse0xaswn.lambda-url.us-east-2.on.aws/health
 ```
 
 ```json
@@ -199,7 +219,7 @@ curl http://localhost:8000/health
 (se genera con `python examples/generar_request.py`).
 
 ```bash
-curl -X POST http://localhost:8000/predict \
+curl -X POST https://pogsqiglzkxpvjojqncmtxchse0xaswn.lambda-url.us-east-2.on.aws/predict \
   -H "Content-Type: application/json" \
   -d @examples/request.json
 ```
@@ -239,6 +259,8 @@ Response (`200 OK`), ver [`examples/response.json`](examples/response.json):
 (`"EDAD": "treinta"`), la API responde `422` con la lista de errores, por ejemplo
 `["'EDAD' debe ser numérico"]`. Si falta un campo obligatorio: `"falta el campo '<campo>'"`.
 
+Para probarla en local se reemplaza la URL por `http://localhost:8000`.
+
 ---
 
 ## 7. CI/CD con GitHub Actions
@@ -246,10 +268,15 @@ Response (`200 OK`), ver [`examples/response.json`](examples/response.json):
 | Workflow | Disparador | Qué hace | Estado |
 |---|---|---|---|
 | `ci.yml` | PR y push a `develop`/`master` | Instala el paquete, ejecuta `ruff` y `pytest`, sube el reporte de pruebas como artefacto. **Si falla, el PR no se puede integrar.** | ✅ |
-| `train.yml` | `workflow_dispatch` | Ejecuta features + entrenamiento y registra en MLflow | 🚧 |
-| `cd.yml` | Integración a `master` | Construye y despliega batch y API en AWS | 🚧 |
+| `train.yml` | `workflow_dispatch` o push a `develop` que cambie `src/`, `config/` o `requirements.txt` | Jobs encadenados: features (train y OOT) → entrenamiento, selección y registro en MLflow → resumen. El linaje se publica como artefacto, y la versión, el alias y la AUC pasan como outputs entre jobs. | ✅ |
+| `cd.yml` | Integración a `master` | Pruebas → validación del `champion` (AUC ≥ 0.70) → imagen arm64 en ECR → despliegue de las dos Lambdas y del schedule ([`infra/aws/deploy.sh`](infra/aws/deploy.sh)) → prueba de humo contra la URL publicada | ✅ |
 
-Las credenciales se gestionan solo con **GitHub Secrets**.
+**Credenciales:**
+- AWS por **OIDC**: GitHub obtiene credenciales temporales del rol `github-actions-mlops`, que solo
+  aceptan las ramas `master` y `develop`. No se guardan claves de AWS.
+- Databricks mediante **GitHub Secrets** (`DATABRICKS_HOST`, `DATABRICKS_TOKEN`).
+- Configuración no sensible mediante **GitHub Variables** (`AWS_ROLE_ARN`, `AWS_REGION`,
+  `MLOPS_DATA_BUCKET`).
 
 ---
 
@@ -273,9 +300,11 @@ Las credenciales se gestionan solo con **GitHub Secrets**.
 ├── docs/                # arquitectura, contrato de datos, decisiones, despliegue, evidencias
 │   └── evidencias/      # capturas de GitHub, MLflow y S3
 ├── examples/            # request/response de la API y generador del request
+├── infra/aws/           # políticas IAM, deploy.sh y guía para recrear la infraestructura
 ├── notebooks/           # exploración de datos (solo exploración)
-├── src/bank_attrition/  # data, features, preprocess, train, evaluate, batch, monitoring, api
+├── src/bank_attrition/  # data, features, preprocess, train, evaluate, batch, monitoring, api, lambda_handlers
 ├── tests/               # pruebas unitarias con pytest
+├── Dockerfile           # imagen de inferencia para Lambda (API y batch)
 ├── .env.example         # plantilla de variables de entorno (sin secretos)
 ├── pyproject.toml       # paquete, pytest y ruff
 ├── requirements.txt     # dependencias fijadas
@@ -290,6 +319,7 @@ Las credenciales se gestionan solo con **GitHub Secrets**.
 - [Contrato de datos y versionamiento en S3](docs/contrato_datos.md)
 - [Decisiones técnicas](docs/decisiones.md)
 - [Despliegue y operación](docs/despliegue.md)
+- [Infraestructura AWS](infra/aws/README.md)
 - [Evidencias](docs/evidencias.md)
 
 ---
@@ -298,9 +328,9 @@ Las credenciales se gestionan solo con **GitHub Secrets**.
 
 | Integrante | GitHub | Rol |
 |---|---|---|
-| Carlos Lazaro | `<usuario>` | `<completar>` |
-| `<completar>` | `Senzouz` | `<completar>` |
-| Manuel Reyes | `<usuario>` | Documentación, arquitectura y README |
+| Carlos Lazaro | `clazzarlos` | `<completar>` |
+| Renzo `<completar apellido>` | `Senzouz` | `<completar>` |
+| Manuel Reyes | `ManuelReyes10` | Documentación, arquitectura y README |
 | `<completar>` | `<usuario>` | `<completar>` |
 
 ---

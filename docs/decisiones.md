@@ -57,6 +57,9 @@ en [`docs/evidencias/`](evidencias/).
 | Decisión | Motivo | Alternativas | Limitaciones |
 |---|---|---|---|
 | **API con FastAPI** | Validación con Pydantic y documentación OpenAPI automática (evidencia 15). | Flask. | — |
-| **Modelo cargado una vez al arrancar** | Menor latencia por request. | Cargar en cada request. | Para tomar un nuevo `champion` hay que reiniciar el servicio. |
-| **Servicio de despliegue batch** 🚧 | `<completar>` | `<completar>` | `<completar>` |
-| **Servicio de despliegue online** 🚧 | `<completar>` | `<completar>` | `<completar>` |
+| **Modelo cargado una vez al arrancar** | Menor latencia por request. | Cargar en cada request. | Para tomar un nuevo `champion` la Lambda debe arrancar un contenedor nuevo; un despliegue lo fuerza. |
+| **Cuenta AWS personal del equipo** (`us-east-2`) | Los lineamientos piden cuenta personal. La cuenta de laboratorio (rol PowerUserAccess) no permitía crear roles IAM, imprescindibles para OIDC, Lambda y Scheduler. | Cuenta de laboratorio del curso. | El plan gratuito fija la región en `us-east-2` y tiene USD 100 en créditos. |
+| **Batch en Lambda + EventBridge Scheduler** | El scoring de unos 14 000 clientes tarda unos 15 s, muy lejos del límite de 15 min. Se paga solo por ejecución y no hay servidores ni VPC. Los logs van a CloudWatch sin configuración extra. | ECS Fargate + EventBridge; SageMaker Batch Transform; AWS Batch. | Si el volumen creciera a millones de clientes y pasara de 15 min, habría que migrar a ECS Fargate con la misma imagen. |
+| **API en Lambda + Function URL** | El tráfico del contact center es intermitente y Lambda solo cobra por invocación. La Function URL da HTTPS sin API Gateway. | SageMaker Endpoint (instancia 24/7); App Runner/ECS (contenedor siempre activo); API Gateway + Lambda. | *Cold start* de unos 25 s. No usa API Gateway porque su límite de 29 s no lo tolera. Se puede mitigar con *provisioned concurrency* (con costo). |
+| **Una sola imagen arm64 para API y batch** | Mismo código, dependencias y preprocesamiento en ambos modos. arm64 (Graviton) cuesta menos por ms. | Dos imágenes; paquete .zip (supera el límite de 250 MB por MLflow y LightGBM). | Imagen de unos 2.5 GB. Requiere `libgomp` para LightGBM. |
+| **OIDC entre GitHub y AWS** | Credenciales temporales por ejecución, sin claves de larga duración. El rol se limita a `master`/`develop` de este repositorio. | Usuario IAM con access keys en GitHub Secrets. | La organización usa el formato *immutable subject* del token, que debe reflejarse en la trust policy. |
