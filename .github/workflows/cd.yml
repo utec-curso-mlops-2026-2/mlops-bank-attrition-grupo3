@@ -1,20 +1,193 @@
-name: Despliegue pendiente de implementar
+name: Despliegue (CD)
 
-# Al completar la solución, integrar el disparador de master solicitado en R6.
-# Antes: CI y validación del modelo. Después: prueba de inferencia y evidencia.
-# La plantilla no despliega ni crea recursos de AWS.
+# Al integrar a master: pruebas -> validación del modelo champion -> imagen en ECR ->
+# despliegue de la API (Lambda + Function URL) y del batch (Lambda + EventBridge Scheduler)
+# -> prueba de humo contra el endpoint publicado.
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
 
 permissions:
   contents: read
+  id-token: write # OIDC: credenciales temporales de AWS sin claves
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: '3.12'
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  MLOPS_DATA_BUCKET: ${{ vars.MLOPS_DATA_BUCKET }}
+  ECR_REPOSITORY: bank-attrition-inferencia
 
 jobs:
-  pending:
+  pruebas:
+    name: Lint y pruebas
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 10
     steps:
-      - name: Explicar implementación pendiente
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+      - run: python -m pip install -e '.[dev]'
+      - run: python -m ruff check .
+      - run: python -m pytest
+
+  validar-modelo:
+    name: Validar modelo champion
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      model_version: ${{ steps.validar.outputs.model_version }}
+      test_auc: ${{ steps.validar.outputs.test_auc }}
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      MLFLOW_TRACKING_URI: databricks
+      MLFLOW_REGISTRY_URI: databricks-uc
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: python -m pip install -e .
+      - name: Comprobar alias champion y AUC mínima
+        id: validar
         run: |
-          echo '::error::Implementar verificaciones, despliegue AWS y prueba posterior antes de habilitar CD.'
-          exit 1
+          python - <<'EOF'
+          import os
+          from mlflow.tracking import MlflowClient
+          from bank_attrition.features import load_config
+
+          cfg = load_config("config/config.yaml")
+          name, minimo = cfg["mlflow"]["model_name"], cfg["mlflow"]["min_auc_test"]
+          client = MlflowClient()
+          mv = client.get_model_version_by_alias(name, cfg["batch"]["model_alias"])
+          auc = client.get_run(mv.run_id).data.metrics["test_auc"]
+          print(f"{name} v{mv.version}: test_auc={auc:.4f} (mínimo {minimo})")
+          if auc < minimo:
+              raise SystemExit("El modelo champion no cumple la AUC mínima: no se despliega.")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+              fh.write(f"model_version={mv.version}\ntest_auc={auc:.4f}\n")
+          EOF
+
+  imagen:
+    name: Construir y publicar imagen
+    needs: [pruebas, validar-modelo]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    outputs:
+      image_uri: ${{ steps.push.outputs.image_uri }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Credenciales AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: cd-imagen-${{ github.run_id }}
+      - name: Construir y subir a ECR
+        id: push
+        run: |
+          registry=$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${AWS_REGION}.amazonaws.com
+          aws ecr get-login-password | docker login --username AWS --password-stdin "$registry"
+          image="$registry/$ECR_REPOSITORY:${GITHUB_SHA::12}"
+          docker build --platform linux/arm64 --provenance=false -t "$image" .
+          docker push "$image"
+          echo "image_uri=$image" >> "$GITHUB_OUTPUT"
+
+  desplegar:
+    name: Desplegar API y batch
+    needs: [imagen, validar-modelo]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: produccion
+      url: ${{ steps.deploy.outputs.api_url }}
+    outputs:
+      api_url: ${{ steps.deploy.outputs.api_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Credenciales AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: cd-deploy-${{ github.run_id }}
+      - name: Desplegar
+        id: deploy
+        env:
+          IMAGE_URI: ${{ needs.imagen.outputs.image_uri }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: bash infra/aws/deploy.sh
+
+  prueba-humo:
+    name: Prueba posterior al despliegue
+    needs: [desplegar, validar-modelo]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Invocar /health y /predict
+        env:
+          API_URL: ${{ needs.desplegar.outputs.api_url }}
+          EXPECTED_VERSION: ${{ needs.validar-modelo.outputs.model_version }}
+        run: |
+          mkdir -p prueba
+          # El primer request puede tardar por el cold start (carga del modelo).
+          curl -sS --fail --retry 3 --retry-delay 10 --max-time 90 "${API_URL%/}/health" | tee prueba/health.json
+          echo
+          curl -sS --fail --max-time 60 -H 'Content-Type: application/json' \
+            -d @examples/request.json "${API_URL%/}/predict" | tee prueba/predict.json
+          echo
+          python3 - <<'EOF'
+          import json, os
+          r = json.load(open("prueba/predict.json"))
+          assert 0.0 <= r["prob_fuga"] <= 1.0, r
+          assert str(r["model_version"]) == os.environ["EXPECTED_VERSION"], r
+          print(f"OK: prob_fuga={r['prob_fuga']} con el modelo v{r['model_version']}")
+          EOF
+          status=$(curl -s -o prueba/invalido.json -w '%{http_code}' -H 'Content-Type: application/json' \
+            -d @examples/request_invalido.json "${API_URL%/}/predict")
+          echo "Request inválido -> HTTP $status"; test "$status" = 422
+      - name: Publicar evidencia
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prueba-humo-${{ github.run_id }}
+          path: prueba/
+      - name: Resumen
+        env:
+          API_URL: ${{ needs.desplegar.outputs.api_url }}
+          VERSION: ${{ needs.validar-modelo.outputs.model_version }}
+          AUC: ${{ needs.validar-modelo.outputs.test_auc }}
+        run: |
+          {
+            echo "## Despliegue"
+            echo "| Campo | Valor |"
+            echo "|---|---|"
+            echo "| Commit | \`${GITHUB_SHA::7}\` |"
+            echo "| Modelo champion | v$VERSION (AUC test $AUC) |"
+            echo "| API | $API_URL |"
+            echo "| Batch | bank-attrition-batch, programado mensualmente por EventBridge Scheduler |"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -13,3 +13,4 @@ python-dotenv==1.2.1
 pyarrow==26.0.1
 fastapi==0.163.2
 uvicorn==0.54.0
+mangum==0.22.0

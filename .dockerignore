@@ -1,0 +1,6 @@
+*
+!requirements.txt
+!src/bank_attrition/**
+!config/**
+!docs/manifiesto_datos.json
+**/__pycache__
