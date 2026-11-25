@@ -26,6 +26,9 @@ test-results/
 
 # Datos, modelos y salidas generadas. Los ejemplos sintéticos sí se versionan.
 data/
+*.csv
+*.parquet
+*.xlsx
 artifacts/
 reports/
 mlruns/

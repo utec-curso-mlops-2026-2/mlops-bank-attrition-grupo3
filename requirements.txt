@@ -1,1 +1,16 @@
 # Añadir las dependencias del proyecto con versiones fijadas.
+pandas==3.1.1
+boto3==1.43.117
+numpy==2.5.4
+scikit-learn==1.9.1
+lightgbm==4.7.0
+xgboost==3.4.1
+mlflow==3.18.0
+optuna==5.0.0
+pyyaml==6.0.3
+matplotlib==3.11.2
+python-dotenv==1.2.1
+pyarrow==26.0.1
+fastapi==0.163.2
+uvicorn==0.54.0
+mangum==0.22.0

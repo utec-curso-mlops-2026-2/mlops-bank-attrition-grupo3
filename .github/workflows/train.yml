@@ -1,19 +1,129 @@
-name: Entrenamiento pendiente de implementar
+name: Entrenamiento
 
-# El equipo debe reemplazar este bloqueo por su pipeline y configurar el acceso.
-# Este workflow inicial nunca accede a S3, MLflow ni recursos de AWS.
+# Pipeline de entrenamiento: features desde S3 -> 3 modelos -> selección -> MLflow Registry.
+# Se lanza a mano (workflow_dispatch) o cuando cambian el código o la configuración en develop.
+# El rol de AWS solo acepta las ramas master y develop (ver infra/aws/iam/).
 on:
   workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - src/bank_attrition/**
+      - config/**
+      - requirements.txt
 
 permissions:
   contents: read
+  id-token: write # OIDC: credenciales temporales de AWS sin claves
+
+concurrency:
+  group: train-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: '3.12'
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  MLOPS_DATA_BUCKET: ${{ vars.MLOPS_DATA_BUCKET }}
 
 jobs:
-  pending:
+  features:
+    name: Construir features (train y OOT)
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 20
     steps:
-      - name: Explicar implementación pendiente
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Instalar paquete
+        run: python -m pip install -e .
+      - name: Credenciales AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: train-features-${{ github.run_id }}
+      - name: Features de entrenamiento
+        run: python -m bank_attrition.features --split train
+      - name: Features de aplicación (OOT)
+        run: python -m bank_attrition.features --split oot
+      - name: Descargar linaje para el registro de la ejecución
         run: |
-          echo '::error::Implementar entrenamiento, validación, trazabilidad y registro antes de habilitar este workflow.'
-          exit 1
+          mkdir -p lineage
+          features_path=$(python -c "from bank_attrition.features import load_config; from bank_attrition.data import resolve; print(resolve(load_config('config/config.yaml')['features']['output_path']))")
+          aws s3 cp "$features_path/train_lineage.json" lineage/
+          aws s3 cp "$features_path/oot_lineage.json" lineage/
+      - name: Conservar linaje de datos
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linaje-datos-${{ github.run_id }}
+          path: lineage/
+          if-no-files-found: error
+
+  train:
+    name: Entrenar, seleccionar y registrar
+    needs: features
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      run_id: ${{ steps.train.outputs.run_id }}
+      best_model: ${{ steps.train.outputs.best_model }}
+      test_auc: ${{ steps.train.outputs.test_auc }}
+      model_version: ${{ steps.train.outputs.model_version }}
+      alias: ${{ steps.train.outputs.alias }}
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      MLFLOW_TRACKING_URI: databricks
+      MLFLOW_REGISTRY_URI: databricks-uc
+      MLFLOW_EXPERIMENT_NAME: /Shared/utec-bank-attrition
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Instalar paquete
+        run: python -m pip install -e .
+      - name: Credenciales AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: train-model-${{ github.run_id }}
+      - name: Entrenar y registrar en MLflow
+        id: train
+        run: python -m bank_attrition.train
+
+  resumen:
+    name: Resumen
+    needs: train
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Publicar resumen de la ejecución
+        env:
+          RUN_ID: ${{ needs.train.outputs.run_id }}
+          BEST: ${{ needs.train.outputs.best_model }}
+          AUC: ${{ needs.train.outputs.test_auc }}
+          VERSION: ${{ needs.train.outputs.model_version }}
+          ALIAS: ${{ needs.train.outputs.alias }}
+        run: |
+          {
+            echo "## Entrenamiento"
+            echo "| Campo | Valor |"
+            echo "|---|---|"
+            echo "| Commit | \`${GITHUB_SHA::7}\` |"
+            echo "| Mejor modelo | $BEST |"
+            echo "| AUC test | $AUC |"
+            echo "| Versión en el Registry | $VERSION |"
+            echo "| Resultado de la validación | $ALIAS |"
+            echo "| Run de MLflow | \`$RUN_ID\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

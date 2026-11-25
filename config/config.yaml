@@ -1,0 +1,54 @@
+data:
+  # Datos crudos versionados por fecha de corte en S3: s3://<bucket>/raw/<yyyymm>/.
+  # El bucket viene de MLOPS_DATA_BUCKET (.env o GitHub Secrets/Variables), no se versiona aquí.
+  # Para una nueva entrega: nueva carpeta raw/<yyyymm>, data_version y manifiesto.
+  raw_path: s3://${MLOPS_DATA_BUCKET}/raw/202611
+  data_version: "202611"
+  manifest: docs/manifiesto_datos.json   # SHA-256 y VersionId esperados de cada archivo
+  clientes_train: train_clientes_sample.csv
+  req_train: train_requerimientos_sample.csv
+  clientes_oot: oot_clientes_sample.csv
+  req_oot: oot_requerimientos_sample.csv
+  id_col: ID_CORRELATIVO
+  target_col: ATTRITION
+
+features:
+  output_path: s3://${MLOPS_DATA_BUCKET}/features/202611   # + <split>_lineage.json
+  n_meses_req: 5
+  corte:
+    train: 202407
+    oot: 202408
+  top_productos: [Producto 20, Producto 07, Producto 18, Producto 21, Producto 17]
+  top_submotivos: [Submotivo 125, Submotivo 157, Submotivo 144, Submotivo 132, Submotivo 88]
+  tipos_req: [Reclamo, Solicitud]
+  dictamenes: [PROCEDE TOTAL, NO PROCEDE, PROCEDE PARCIAL, SIN_DICTAMEN]
+  lag_prefixes: [SDO_ACTIVO, FLG_SEGURO, NRO_ACCES_CANAL1, NRO_ACCES_CANAL2, NRO_ACCES_CANAL3, NRO_ENTID_SSFF, FLG_SDO_OTSSFF]
+
+split:
+  test_size: 0.3
+  random_state: 42
+
+train:
+  selection_metric: test_auc        # criterio explícito para elegir el mejor modelo
+  threshold: 0.5                    # umbral para la matriz de confusión
+  models:
+    logreg: {C: 1.0, max_iter: 2000, class_weight: balanced}
+    random_forest: {n_estimators: 300, max_depth: 8, min_samples_leaf: 50, class_weight: balanced, n_jobs: -1, random_state: 42}
+    lightgbm: {n_estimators: 400, learning_rate: 0.05, num_leaves: 31, subsample: 0.8, subsample_freq: 1, colsample_bytree: 0.8, is_unbalance: true, random_state: 42, verbose: -1}
+
+batch:
+  model_alias: champion
+  output_path: s3://${MLOPS_DATA_BUCKET}/scores        # /<codmes>/scores.csv
+monitoring:
+  output_path: s3://${MLOPS_DATA_BUCKET}/monitoring    # /<codmes>/psi_variables.csv
+  bins: 10
+  psi_alerta: 0.10
+  psi_critico: 0.25
+
+mlflow:
+  model_name: workspace.bank_attrition.attrition_model
+  min_auc_test: 0.70
+
+api:
+  base_fields: [FLG_BANCARIZADO, RANG_INGRESO, FLAG_LIMA_PROVINCIA, EDAD, ANTIGUEDAD, RANG_SDO_PASIVO_MENOS0, RANG_NRO_PRODUCTOS_MENOS0, FLG_NOMINA]
+  categorical_fields: [RANG_INGRESO, FLAG_LIMA_PROVINCIA, RANG_SDO_PASIVO_MENOS0, RANG_NRO_PRODUCTOS_MENOS0]
