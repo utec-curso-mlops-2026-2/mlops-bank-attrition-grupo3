@@ -1,0 +1,11 @@
+# R7 - Logs en CloudWatch de la ejecución AUTOMÁTICA del batch (lanzada por EventBridge Scheduler)
+# Log group: /aws/lambda/bank-attrition-batch
+
+2026-11-25T01:42:39Z  START RequestId: fb6b063c-e85a-4c8e-963e-23f59e36292f Version: $LATEST
+2026-11-25T01:42:41Z  [INFO]	2026-11-25T01:42:41.487Z	fb6b063c-e85a-4c8e-963e-23f59e36292f	Evento: {"origen": "eventbridge-scheduler-prueba"}
+2026-11-25T01:42:44Z  oot: (14000, 102) -> s3://mlops-bank-attrition-grupo3-484815418393/features/202611/oot.parquet (version pYjlp_N1FpF66btrC9cbd_udJbG3ZnkM)
+2026-11-25T01:42:53Z  Scores: s3://mlops-bank-attrition-grupo3-484815418393/scores/202408/scores.csv (14000 clientes, modelo v2)
+2026-11-25T01:42:53Z  Drift: s3://mlops-bank-attrition-grupo3-484815418393/monitoring/202408/psi_variables.csv
+2026-11-25T01:42:53Z  PSI score: 0.0008 (estable) | variables en alerta/crítico: 0
+2026-11-25T01:42:53Z  END RequestId: fb6b063c-e85a-4c8e-963e-23f59e36292f
+2026-11-25T01:42:53Z  REPORT RequestId: fb6b063c-e85a-4c8e-963e-23f59e36292f	Duration: 14529.85 ms	Billed Duration: 14675 ms	Memory Size: 3008 MB	Max Memory Used: 930 MB	Init Duration: 144.92 ms

@@ -1,0 +1,10 @@
+# R7 - Schedule mensual del batch en EventBridge Scheduler
+{
+    "Nombre": "bank-attrition-batch-mensual",
+    "Expresion": "cron(0 6 1 * ? *)",
+    "ZonaHoraria": "America/Lima",
+    "Estado": "ENABLED",
+    "Destino": "arn:aws:lambda:us-east-2:484815418393:function:bank-attrition-batch",
+    "Rol": "arn:aws:iam::484815418393:role/bank-attrition-scheduler-role",
+    "Creado": "2026-11-24T20:39:05.136000-05:00"
+}
