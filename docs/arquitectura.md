@@ -1,7 +1,9 @@
 # Arquitectura
 
 Este documento describe los componentes de la solución, cómo se conectan y qué los dispara.
-Se distingue lo **implementado** (✅) de lo **en implementación** (🚧).
+Todos los componentes están implementados y desplegados en la cuenta AWS del equipo
+(`484815418393`, región `us-east-2`). Lo único pendiente es el plan de model/concept drift, que se
+propone en el informe técnico.
 
 ## 1. Vista general
 
@@ -27,21 +29,23 @@ flowchart TB
         RG["Model Registry (Unity Catalog)<br/>@champion · @challenger"]
     end
 
-    subgraph INF["Inferencia – AWS 🚧"]
-        EB["EventBridge<br/>schedule mensual"]
-        BJ["Job batch<br/>batch.py + PSI"]
-        EP["Endpoint REST<br/>api.py"]
+    subgraph INF["Inferencia – AWS us-east-2"]
+        ECR["ECR<br/>bank-attrition-inferencia"]
+        EB["EventBridge Scheduler<br/>bank-attrition-batch-mensual"]
+        BJ["Lambda bank-attrition-batch<br/>features OOT + batch.py + PSI"]
+        EP["Lambda bank-attrition-api<br/>Function URL · api.py"]
         CW["CloudWatch Logs"]
     end
 
     KAG["Kaggle<br/>CSV crudos"] -->|"data.py subir"| RAW
     RAW -->|"features.py"| FEAT
-    TW["train.yml 🚧"] -->|"train.py"| TR
+    TW["train.yml<br/>(OIDC → AWS)"] -->|"train.py"| TR
     FEAT --> TR
     TR -->|"AUC test ≥ 0.70"| RG
 
-    M -->|"cd.yml 🚧"| BJ
-    M -->|"cd.yml 🚧"| EP
+    M -->|"cd.yml: build + push"| ECR
+    ECR -->|"deploy.sh"| BJ
+    ECR -->|"deploy.sh"| EP
     EB --> BJ
     RG --> BJ
     RG --> EP
@@ -106,52 +110,78 @@ Métricas (`evaluate.py`): AUC, Gini, KS y % de fugas capturadas en el top 10 % 
   - AUC test ≥ 0.70 pero no mejor → alias `challenger`.
 - Batch y API cargan **siempre** `models:/<modelo>@champion`, nunca un archivo local.
 
-### 2.5 Inferencia batch – AWS 🚧
+### 2.5 Inferencia batch – AWS Lambda + EventBridge Scheduler ✅
 
-- **Implementado** (`batch.py`): carga `@champion`, scorea el OOT y escribe en
+- **Lógica** (`batch.py`): carga `@champion`, scorea el OOT y escribe en
   `s3://<bucket>/scores/<codmes>/scores.csv` las columnas `id_cliente`, `prob_fuga`, `decil`
   (1 = mayor riesgo), `segmento_riesgo` (alto/medio/bajo), `codmes_score`, `fecha_score` y
   `model_version`. Registra un run `batch_<codmes>` en MLflow con el linaje.
-- **En implementación**: ejecución en AWS programada mensualmente con **EventBridge** y logs en
-  **CloudWatch**. `<completar servicio elegido y justificación>`.
+- **Ejecución en AWS**: la Lambda `bank-attrition-batch` (`batch_handler` en
+  `lambda_handlers.py`) primero recalcula las features OOT desde S3 y después ejecuta `batch.run`.
+  Usa 3 GB de memoria y tiene un timeout de 15 min; una ejecución real tarda unos 15 s y usa unos
+  930 MB.
+- **Programación**: EventBridge Scheduler (`bank-attrition-batch-mensual`) la invoca con
+  `cron(0 6 1 * ? *)` en `America/Lima`, es decir el día 1 de cada mes a las 06:00. Usa el rol
+  `bank-attrition-scheduler-role`, que solo puede invocar esa función.
+- **Logs**: CloudWatch, en `/aws/lambda/bank-attrition-batch`.
+- **Por qué Lambda**: el scoring de unos 14 000 clientes termina muy por debajo del límite de 15 min
+  de Lambda. Se cobra solo por ejecución (una al mes), y no requiere VPC, cluster ni servidores
+  encendidos. Se descartaron ECS Fargate (más piezas: cluster, red, task definition) y SageMaker
+  Batch Transform (más caro y requiere empaquetar el modelo en su formato).
 
-### 2.6 Inferencia online – AWS 🚧
+### 2.6 Inferencia online – AWS Lambda + Function URL ✅
 
-- **Implementado** (`api.py`): API FastAPI que carga el modelo una sola vez al arrancar.
+- **Lógica** (`api.py`): API FastAPI que carga el modelo una sola vez al arrancar.
   - `GET /health`: estado, nombre y versión del modelo.
   - `POST /predict`: recibe el cliente y sus requerimientos en JSON, construye las features con la
     **misma función** que el pipeline (`build_features`) y devuelve `prob_fuga` y `model_version`.
   - Validación: `422` si falta un campo o tiene un tipo incorrecto; `400` si no se puede scorear.
-- **En implementación**: despliegue en AWS. `<completar: servicio elegido (Lambda + API Gateway,
-  App Runner, ECS…), URL y justificación>`.
+- **Despliegue**: la Lambda `bank-attrition-api` usa `api_handler`, que adapta FastAPI con Mangum
+  y carga el modelo una vez por contenedor. Está expuesta con una **Function URL** pública:
+  `https://pogsqiglzkxpvjojqncmtxchse0xaswn.lambda-url.us-east-2.on.aws/`. Usa 2 GB de memoria y tiene un timeout de 60 s.
+- **Latencia**: unos 25 s en *cold start*, por la descarga del modelo desde el Registry, y unos 1 s
+  en caliente.
+- **Por qué Lambda + Function URL**: el tráfico esperado (consultas puntuales del contact center)
+  es bajo e intermitente, y Lambda solo cobra por invocación. Una Function URL da HTTPS sin
+  configurar API Gateway. Se descartaron:
+  - **SageMaker Endpoint**: tiene una instancia encendida 24/7, con costo fijo.
+  - **ECS/App Runner**: requieren un contenedor siempre activo.
+  - **API Gateway**: su límite de 29 s no tolera el cold start.
+- **Imagen**: un solo `Dockerfile` (arm64) para la API y el batch, publicado en ECR
+  (`bank-attrition-inferencia`). Cada función elige su handler con `ImageConfig.Command`.
 
-### 2.7 Monitoreo ✅ / 🚧
+### 2.7 Monitoreo
 
 - **Data drift** ✅ (`monitoring.py`, como paso del batch): PSI por variable y sobre la distribución
   del score, train vs aplicación, con 10 bins. Semáforo: < 0.10 estable · 0.10–0.25 alerta ·
   > 0.25 crítico. El reporte se guarda en `s3://<bucket>/monitoring/<codmes>/psi_variables.csv` y en
   MLflow (`psi_score`, `n_vars_alerta`, `n_vars_critico`).
-- **Model/concept drift** 🚧: plan propuesto en el informe técnico para cuando lleguen las
-  etiquetas reales (6 meses después).
+- **Model/concept drift**: plan propuesto en el informe técnico para cuando lleguen las etiquetas
+  reales (6 meses después).
 
 ### 2.8 CI/CD – GitHub Actions
 
 | Workflow | Disparador | Función | Estado |
 |---|---|---|---|
 | `ci.yml` | PR y push a `develop`/`master` | `ruff` + `pytest`; bloquea el PR si falla. Sube el reporte de pruebas como artefacto. | ✅ |
-| `train.yml` | `workflow_dispatch` | Features + entrenamiento + registro en MLflow | 🚧 |
-| `cd.yml` | Integración a `master` | Construir y desplegar batch y API en AWS | 🚧 |
+| `train.yml` | `workflow_dispatch` o push a `develop` (cambios en `src/`, `config/`, `requirements.txt`) | Features → entrenamiento + registro en MLflow → resumen. El linaje se publica como artefacto y los resultados pasan como outputs entre jobs. | ✅ |
+| `cd.yml` | Integración a `master` | Pruebas → validación del `champion` → imagen en ECR → despliegue con `infra/aws/deploy.sh` → prueba de humo contra la URL publicada | ✅ |
 
-Las credenciales (AWS, Databricks) se entregan solo mediante **GitHub Secrets**.
+**Credenciales:**
+- **AWS por OIDC**: el rol `github-actions-mlops` solo acepta tokens de las ramas `master` y
+  `develop` de este repositorio. Sus permisos se limitan al bucket y a los recursos
+  `bank-attrition-*`. No hay claves de AWS guardadas en ningún lado.
+- **Databricks**: GitHub Secrets.
+- Detalle de IAM en [`infra/aws/`](../infra/aws/README.md).
 
 ## 3. Disparadores
 
 | Evento | Qué se ejecuta |
 |---|---|
 | Pull Request a `develop` o `master` | CI (lint + pruebas) |
-| Ejecución manual de `train.yml` | Entrenamiento y registro del modelo |
+| Ejecución manual de `train.yml` o push a `develop` con cambios de código | Entrenamiento y registro del modelo |
 | Merge a `master` | CD: despliegue de batch y API en AWS |
-| Schedule mensual (EventBridge) | Inferencia batch + reporte de drift |
+| Schedule mensual (EventBridge Scheduler, día 1 a las 06:00 Lima) | Lambda batch: features OOT + scoring + reporte de drift |
 | Llamada del sistema del asesor | `POST /predict` en el endpoint online |
 
 ## 4. Flujo de un modelo de punta a punta
@@ -160,5 +190,6 @@ Las credenciales (AWS, Databricks) se entregan solo mediante **GitHub Secrets**.
 2. Se generan las features con su linaje.
 3. `train.yml` entrena los 3 modelos y registra el mejor en MLflow.
 4. Si pasa la validación y supera al actual, recibe el alias `champion`.
-5. El batch mensual y la API cargan automáticamente el nuevo `@champion`, sin cambiar código.
+5. El batch mensual carga el nuevo `@champion` en su siguiente ejecución, sin cambiar código. La
+   API lo toma cuando la Lambda arranca un contenedor nuevo, o de inmediato con un despliegue (`cd.yml`).
 6. El batch calcula el PSI; si hay drift crítico, se revisa el modelo y se reentrena.
