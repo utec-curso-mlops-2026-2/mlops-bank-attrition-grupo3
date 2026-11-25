@@ -88,7 +88,7 @@ Repositorio: <https://github.com/utec-curso-mlops-2026-2/mlops-bank-attrition-gr
 |---|---|
 | [12](evidencias/12.%20R9%20-%20Ejecuci%C3%B3n%20en%20Batch%20con%20psi_score%2C%20cantidad%20de%20variables%20en%20alerta%20y%20cr%C3%ADticas.png), [13](evidencias/13.%20R9%20-%20Artefacto%20con%20el%20score%20psi%20de%20las%20variables.png), [30](evidencias/30.%20R9%20-%20Reporte%20PSI%20versionado%20en%20S3.png) | PSI por variable y del score en MLflow y S3 |
 | [salidas/R7_R9_salidas_s3.txt](evidencias/salidas/R7_R9_salidas_s3.txt) | Reporte PSI de la ejecución automática: score 0.0008 (estable), 0 variables en alerta |
-| [monitoreo.md](monitoreo.md) *(pendiente)* | Plan de model/concept drift |
+| [monitoreo.md](monitoreo.md) | Plan de model/concept drift: línea base, métricas, frecuencia, criterios de reentrenamiento y procedimiento champion/challenger |
 
 ## R10. Arquitectura y documentación
 
@@ -100,5 +100,4 @@ Repositorio: <https://github.com/utec-curso-mlops-2026-2/mlops-bank-attrition-gr
 ## Pendientes
 
 - Ejecución de `cd.yml` al integrar a `master`.
-- `monitoreo.md`.
 - Informe técnico en PDF.
