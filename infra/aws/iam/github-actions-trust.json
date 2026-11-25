@@ -14,8 +14,8 @@
         },
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
-            "repo:utec-curso-mlops-2026-2/mlops-bank-attrition-grupo3:ref:refs/heads/master",
-            "repo:utec-curso-mlops-2026-2/mlops-bank-attrition-grupo3:ref:refs/heads/develop"
+            "repo:utec-curso-mlops-2026-2@337495086/mlops-bank-attrition-grupo3@1453269243:ref:refs/heads/master",
+            "repo:utec-curso-mlops-2026-2@337495086/mlops-bank-attrition-grupo3@1453269243:ref:refs/heads/develop"
           ]
         }
       }
