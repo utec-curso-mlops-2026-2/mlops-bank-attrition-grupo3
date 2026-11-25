@@ -328,6 +328,12 @@ Para probarla en local se reemplaza la URL por `http://localhost:8000`.
 
 | Integrante | GitHub | Rol |
 |---|---|---|
+| Renzo Ravelli Altamirano | `Senzouz` | Data Scientist / ML Engineer: exploración, features, modelado y tracking en MLflow, inferencia batch, API y monitoreo de drift |
+| Carlos Lazaro | `clazzarlos` | MLOps / Cloud Engineer: versionamiento de datos en S3, infraestructura AWS, CI/CD con GitHub Actions y despliegue en Lambda |
+| Manuel Reyes Quispe | `ManuelReyes10` | Documentación y arquitectura: README, diagrama, decisiones técnicas e informe técnico |
+| Alvaro Tauma Salvador | `alcetasa` | Monitoreo y evidencias: plan de model/concept drift, anexo de evidencias y demo |
+
+---|---|---|
 | Carlos Lazaro | `clazzarlos` | `<completar>` |
 | Renzo `<completar apellido>` | `Senzouz` | `<completar>` |
 | Manuel Reyes | `ManuelReyes10` | Documentación, arquitectura y README |
