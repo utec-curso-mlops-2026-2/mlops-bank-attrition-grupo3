@@ -1,0 +1,23 @@
+# R6 - Workflow de entrenamiento (train.yml) en GitHub Actions
+# https://github.com/utec-curso-mlops-2026-2/mlops-bank-attrition-grupo3/actions/runs/45527607101
+
+
+✓ develop Entrenamiento · 45527607101
+Triggered via push about 39 minutes ago
+
+JOBS
+✓ Construir features (train y OOT) in 1m7s (ID 138915687437)
+✓ Entrenar, seleccionar y registrar in 2m2s (ID 138916148232)
+✓ Resumen in 2s (ID 138916972792)
+
+ARTIFACTS
+linaje-datos-45527607101
+
+For more information about a job, try: gh run view --job=<job-id>
+View this run on GitHub: https://github.com/utec-curso-mlops-2026-2/mlops-bank-attrition-grupo3/actions/runs/45527607101
+
+## Resultados del entrenamiento (log del job)
+logreg: test_auc=0.7901
+random_forest: test_auc=0.7995
+lightgbm: test_auc=0.8363
+Mejor: lightgbm | versión 4 | resultado: challenger

@@ -1,0 +1,22 @@
+# R6 - Credenciales: variables y secrets del repositorio (solo nombres)
+## Variables
+AWS_REGION	us-east-2	2026-11-25T01:09:16Z
+AWS_ROLE_ARN	arn:aws:iam::484815418393:role/github-actions-mlops	2026-11-25T01:09:15Z
+MLOPS_DATA_BUCKET	mlops-bank-attrition-grupo3-484815418393	2026-11-25T01:09:18Z
+## Secrets (valores no visibles)
+DATABRICKS_HOST	2026-11-25T01:13:58Z
+DATABRICKS_TOKEN	2026-11-25T01:13:56Z
+
+## Proveedor OIDC y rol asumido por GitHub Actions
+OPENIDCONNECTPROVIDERLIST	arn:aws:iam::484815418393:oidc-provider/token.actions.githubusercontent.com
+{
+    "StringEquals": {
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+    },
+    "StringLike": {
+        "token.actions.githubusercontent.com:sub": [
+            "repo:utec-curso-mlops-2026-2@337495086/mlops-bank-attrition-grupo3@1453269243:ref:refs/heads/master",
+            "repo:utec-curso-mlops-2026-2@337495086/mlops-bank-attrition-grupo3@1453269243:ref:refs/heads/develop"
+        ]
+    }
+}

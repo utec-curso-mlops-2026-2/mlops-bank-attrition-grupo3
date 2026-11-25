@@ -1,0 +1,13 @@
+# R8 - Invocación de la API desplegada en AWS (Lambda + Function URL)
+# 2026-11-25T02:24:11Z
+
+$ curl https://pogsqiglzkxpvjojqncmtxchse0xaswn.lambda-url.us-east-2.on.aws/health
+{"status":"ok","model_name":"workspace.bank_attrition.attrition_model","model_version":"2"}
+
+$ curl -X POST https://pogsqiglzkxpvjojqncmtxchse0xaswn.lambda-url.us-east-2.on.aws/predict -H "Content-Type: application/json" -d @examples/request.json
+{"id_cliente":22240,"prob_fuga":0.639375,"model_name":"workspace.bank_attrition.attrition_model","model_version":"2"}
+HTTP 200
+
+$ curl -X POST https://pogsqiglzkxpvjojqncmtxchse0xaswn.lambda-url.us-east-2.on.aws/predict -d @examples/request_invalido.json
+{"detail":["'EDAD' debe ser numérico"]}
+HTTP 422
